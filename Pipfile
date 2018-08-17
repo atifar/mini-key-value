@@ -9,6 +9,7 @@ gunicorn = "==19.9.0"
 pymongo = "==3.7.1"
 
 [dev-packages]
+pytest = "==3.7.1"
 
 [requires]
 python_version = "3.6"
