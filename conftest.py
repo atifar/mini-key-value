@@ -1,3 +1,4 @@
+import os
 import pytest
 from app import create_app, mongo
 from config import Config
@@ -6,6 +7,8 @@ from config import Config
 class TestConfig(Config):
     TESTING = True
     MONGO_DBNAME = 'test_' + Config.MONGO_DBNAME
+    MONGO_HOST = os.environ.get('MONGO_HOST', 'mongodb://localhost')
+    MONGO_URI = f'{MONGO_HOST}:27017/{MONGO_DBNAME}'
 
 
 @pytest.fixture
