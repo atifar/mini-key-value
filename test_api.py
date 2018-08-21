@@ -61,3 +61,61 @@ def test_get_existing_key(client, keys, add_to_keys):
     assert resp_data['key'] == 'bees'
     assert resp_data['http_url'][-10:] == '/keys/bees'
     assert resp_data['value'] == ['Ann', 'Joe', 'Dee']
+
+
+def test_create_new_key(client, keys):
+    new_doc = {'key': 'oscillator', 'value': 'Colpitts'}
+    resp = client.post(
+        '/keys',
+        json=new_doc,
+        content_type='application/json'
+    )
+    assert resp.status_code == 201
+    resp_data = resp.get_json()
+    assert isinstance(resp_data, dict)
+    for k in ('key', 'http_url', 'value'):
+        assert k in resp_data
+    assert resp_data['key'] == new_doc['key']
+    assert resp_data['value'] == new_doc['value']
+    assert resp_data['http_url'][-16:] == '/keys/oscillator'
+
+
+def test_create_duplicate_key(client, keys, add_to_keys):
+    new_doc = {'key': 'oscillator', 'value': 'Colpitts'}
+    add_to_keys(new_doc.copy())
+    resp = client.post(
+        '/keys',
+        json=new_doc,
+        content_type='application/json'
+    )
+    assert resp.status_code == 400
+    resp_data = resp.get_json()
+    assert 'error' in resp_data
+    assert resp_data['error'] == "Can't create duplicate key (oscillator)."
+
+
+def test_create_new_key_missing_key(client, keys):
+    new_doc = {'value': 'Colpitts'}
+    resp = client.post(
+        '/keys',
+        json=new_doc,
+        content_type='application/json'
+    )
+    assert resp.status_code == 400
+    resp_data = resp.get_json()
+    assert 'error' in resp_data
+    assert resp_data['error'] == 'Please provide the missing "key" parameter!'
+
+
+def test_create_new_key_missing_value(client, keys):
+    new_doc = {'key': 'oscillator'}
+    resp = client.post(
+        '/keys',
+        json=new_doc,
+        content_type='application/json'
+    )
+    assert resp.status_code == 400
+    resp_data = resp.get_json()
+    assert 'error' in resp_data
+    assert resp_data['error'] == 'Please provide the missing "value" ' \
+                                 'parameter!'
