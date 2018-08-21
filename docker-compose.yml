@@ -4,6 +4,7 @@ services:
 
     mongo:
         image: mongo
+        container_name: mymongo
         restart: always
     web:
         build: .
