@@ -53,6 +53,27 @@ def create_app(config_class=Config):
             }
         return clean_data, is_valid, error_msg
 
+    def validate_value_data(raw_data):
+        """
+        Validate raw PUT data for 'update_key' endpoint. Return a
+        <clean_value (str or [...]), is_valid (bool), error_msg (str)>
+        3-tuple.
+        """
+        clean_value, is_valid, error_msg = ('', False, '')
+        if 'value' not in raw_data:
+            error_msg = {
+                'error': 'Please provide the missing "value" parameter!'
+            }
+        elif not any([isinstance(raw_data['value'], t) for t in (str, list)]):
+            error_msg = {
+                'error': 'The "value" parameter must be a string or a list '
+                'of simple types.'
+            }
+        else:
+            is_valid = True
+            clean_value = raw_data['value']
+        return clean_value, is_valid, error_msg
+
     # sanity check
     @app.route('/sanity')
     def sanity_check():
@@ -78,6 +99,17 @@ def create_app(config_class=Config):
         resp.status_code = 200
         return resp
 
+    @app.route('/keys/<key>', methods=['GET'])
+    def get_key(key):
+        keys = mongo.db.keys
+        doc = keys.find_one_or_404({'key': key})
+        data = {
+            'key': doc['key'],
+            'value': doc['value'],
+            'http_url': request.url_root + 'keys/' + doc['key']
+        }
+        return build_response(data, 200)
+
     @app.route('/keys', methods=['POST'])
     def create_key():
         keys = mongo.db.keys
@@ -93,17 +125,28 @@ def create_app(config_class=Config):
             return build_response(data, 201)
         return build_response(error_msg, 400)
 
-    @app.route('/keys/<key>', methods=['GET'])
-    def get_key(key):
+    @app.route('/keys/<key>', methods=['PUT'])
+    def update_key(key):
         keys = mongo.db.keys
-        doc = keys.find_one_or_404({'key': key})
-        data = {
-            'key': doc['key'],
-            'value': doc['value'],
-            'http_url': request.url_root + 'keys/' + doc['key']
-        }
-        resp = jsonify(data)
-        resp.status_code = 200
-        return resp
+        clean_value, is_valid, error_msg = validate_value_data(
+            request.get_json())
+        if is_valid:
+            result = keys.update_one(
+                {'key': key},
+                {'$set': {'key': key, 'value': clean_value}}
+            )
+            if result.modified_count:  # successful update
+                return build_response(None, 204)
+            else:  # unsuccessful update
+                error_msg = {'error': 'Update failed.'}
+                return build_response(error_msg, 400)
+        else:
+            return build_response(error_msg, 400)
+
+    @app.route('/keys/<key>', methods=['DELETE'])
+    def delete_key(key):
+        keys = mongo.db.keys
+        keys.find_one_or_404({'key': key})
+        return build_response('', 204)
 
     return app

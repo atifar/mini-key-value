@@ -4,6 +4,7 @@ def test_check_sanity(client):
     assert 'Sanity check passed.' == resp.data.decode()
 
 
+# 'list collections' tests
 def test_get_api_root(client):
     resp = client.get('/', content_type='application/json')
     assert resp.status_code == 200
@@ -18,6 +19,7 @@ def test_delete_api_root_not_allowed(client):
     assert resp.status_code == 405
 
 
+# 'list keys' tests
 def test_get_empty_keys_list(client):
     resp = client.get('/keys', content_type='application/json')
     assert resp.status_code == 200
@@ -48,6 +50,7 @@ def test_delete_on_keys_not_allowed(client):
     assert resp.status_code == 405
 
 
+# 'get a key' tests
 def test_get_existing_key(client, keys, add_to_keys):
     add_to_keys({'key': 'babboon', 'value': 'Larry'})
     add_to_keys({'key': 'bees', 'value': ['Ann', 'Joe', 'Dee']})
@@ -63,6 +66,17 @@ def test_get_existing_key(client, keys, add_to_keys):
     assert resp_data['value'] == ['Ann', 'Joe', 'Dee']
 
 
+def test_get_nonexisting_key(client, keys):
+    resp = client.get('/keys/bees', content_type='application/json')
+    assert resp.status_code == 404
+
+
+def test_post_on_a_key_not_allowed(client):
+    resp = client.post('/keys/bees', content_type='application/json')
+    assert resp.status_code == 405
+
+
+# 'create a key' tests
 def test_create_new_key(client, keys):
     new_doc = {'key': 'oscillator', 'value': 'Colpitts'}
     resp = client.post(
@@ -119,3 +133,47 @@ def test_create_new_key_missing_value(client, keys):
     assert 'error' in resp_data
     assert resp_data['error'] == 'Please provide the missing "value" ' \
                                  'parameter!'
+
+
+# 'update a key' tests
+def test_update_a_key_existing(client, keys, add_to_keys):
+    add_to_keys({'key': 'oscillator', 'value': 'Colpitts'})
+    update_value = {'value': ['Pierce', 'Hartley']}
+    resp = client.put(
+        '/keys/oscillator',
+        json=update_value,
+        content_type='application/json'
+    )
+    assert resp.status_code == 204
+
+
+def test_update_a_key_nonexisting(client, keys, add_to_keys):
+    add_to_keys({'key': 'oscillator', 'value': 'Colpitts'})
+    update_value = {'value': ['Pierce', 'Hartley']}
+    resp = client.put(
+        '/keys/gadget',
+        json=update_value,
+        content_type='application/json'
+    )
+    assert resp.status_code == 400
+    resp_data = resp.get_json()
+    assert 'error' in resp_data
+    assert resp_data['error'] == 'Update failed.'
+
+
+# 'delete a key' tests
+def test_delete_a_key_existing(client, keys, add_to_keys):
+    add_to_keys({'key': 'oscillator', 'value': 'Colpitts'})
+    resp = client.delete(
+        '/keys/oscillator',
+        content_type='application/json'
+    )
+    assert resp.status_code == 204
+
+
+def test_delete_a_key_nonexisting(client, keys):
+    resp = client.delete(
+        '/keys/oscillator',
+        content_type='application/json'
+    )
+    assert resp.status_code == 404
