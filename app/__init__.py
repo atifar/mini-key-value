@@ -1,9 +1,10 @@
-import os
-
 from flask import Flask, jsonify, request
-from pymongo import MongoClient
+from flask_pymongo import PyMongo
 
 from config import Config
+
+
+mongo = PyMongo()
 
 
 def create_app(config_class=Config):
@@ -12,13 +13,7 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
 
     # connect to the database server
-    client = MongoClient(
-        host=app.config['MONGO_HOST'],
-        port=app.config['MONGO_PORT']
-    )
-
-    # create the database
-    db = client[app.config['MONGO_DBNAME']]
+    mongo.init_app(app)
 
     # sanity check
     @app.route('/sanity')
@@ -28,6 +23,32 @@ def create_app(config_class=Config):
     @app.route('/', methods=['GET'])
     def home():
         data = {'keys_url': request.url_root + 'keys'}
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    @app.route('/keys', methods=['GET'])
+    def list_keys():
+        keys = mongo.db.keys
+        data = [
+            {
+                'key': k['key'],
+                'http_url': request.url_root + 'keys/' + k['key']
+            } for k in keys.find()
+        ]
+        resp = jsonify(data)
+        resp.status_code = 200
+        return resp
+
+    @app.route('/keys/<key>', methods=['GET'])
+    def get_key(key):
+        keys = mongo.db.keys
+        doc = keys.find_one_or_404({'key': key})
+        data = {
+            'key': doc['key'],
+            'value': doc['value'],
+            'http_url': request.url_root + 'keys/' + doc['key']
+        }
         resp = jsonify(data)
         resp.status_code = 200
         return resp
